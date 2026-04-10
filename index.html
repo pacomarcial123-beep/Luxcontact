@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>LuxContact PRO</title>
+<title>LuxContact FINAL</title>
 <style>
 body { font-family: Arial; background:#f5f5f5; padding:20px;}
 .card { background:white; padding:15px; margin:10px 0; border-radius:10px;}
@@ -14,148 +14,95 @@ h1 { text-align:center;}
 <input id="telefono" placeholder="Teléfono">
 <select id="comercial"></select>
 <select id="tarifa"></select>
+<select id="sva"></select>
 <input id="permanencia" placeholder="Meses">
 <button onclick="guardarVenta()">Guardar</button>
 </div><div class="card">
-<h2>Comerciales</h2>
-<input id="nuevoComercial" placeholder="Nombre">
-<button onclick="addComercial()">Añadir</button>
-<div id="listaComerciales"></div>
-</div><div class="card">
-<h2>Tarifas</h2>
-<input id="nombreTarifa" placeholder="Nombre">
-<input id="beneficioTarifa" placeholder="Beneficio">
-<button onclick="addTarifa()">Añadir</button>
-<div id="listaTarifas"></div>
+<h2>SVA</h2>
+<input id="nuevoSVA" placeholder="Nombre SVA">
+<button onclick="addSVA()">Guardar</button>
+<div id="listaSVA"></div>
 </div><div class="card">
 <h2>Ventas</h2>
-<div id="ventas"></div>
+<div id="listaVentas"></div>
 </div><script>
 let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
-let comerciales = JSON.parse(localStorage.getItem("comerciales")) || ["Juan","Ana"];
-let tarifas = JSON.parse(localStorage.getItem("tarifas")) || [
- {nombre:"Fibra", beneficio:20},
- {nombre:"Móvil", beneficio:15}
-];
+let comerciales = ["Juan","Ana"];
+let tarifas = [{nombre:"Fibra", beneficio:20}];
+let svas = JSON.parse(localStorage.getItem("svas")) || ["Seguro","TV"];
 
-let editComIndex = null;
-let editTarIndex = null;
+let editIndex = null;
 
 function guardar(){
  localStorage.setItem("ventas", JSON.stringify(ventas));
- localStorage.setItem("comerciales", JSON.stringify(comerciales));
- localStorage.setItem("tarifas", JSON.stringify(tarifas));
+ localStorage.setItem("svas", JSON.stringify(svas));
+}
+
+function addSVA(){
+ if(!nuevoSVA.value) return;
+
+ if(editIndex!==null){
+  svas[editIndex] = nuevoSVA.value;
+  editIndex = null;
+ } else {
+  svas.push(nuevoSVA.value);
+ }
+
+ nuevoSVA.value="";
+ guardar();
+ render();
+}
+
+function editarSVA(i){
+ nuevoSVA.value = svas[i];
+ editIndex = i;
+}
+
+function eliminarSVA(i){
+ let nombre = svas[i];
+
+ if(ventas.some(v=>v.sva===nombre)){
+  alert("No puedes borrar: tiene ventas asociadas");
+  return;
+ }
+
+ if(confirm("¿Eliminar SVA?")){
+  svas.splice(i,1);
+  guardar();
+  render();
+ }
 }
 
 function guardarVenta(){
- if(!cliente.value || !comercial.value || !tarifa.value){
-  alert("Faltan datos"); return;
- }
+ if(!cliente.value) return;
 
  ventas.push({
   cliente: cliente.value,
-  telefono: telefono.value,
   comercial: comercial.value,
   tarifa: tarifa.value,
-  permanencia: parseInt(permanencia.value)||0,
-  fecha: new Date()
+  sva: sva.value
  });
 
- cliente.value=""; telefono.value=""; permanencia.value="";
- guardar(); render();
-}
-
-function addComercial(){
- if(!nuevoComercial.value) return;
-
- if(editComIndex!==null){
-  comerciales[editComIndex]=nuevoComercial.value;
-  editComIndex=null;
- } else {
-  comerciales.push(nuevoComercial.value);
- }
-
- nuevoComercial.value="";
- guardar(); render();
-}
-
-function editarComercial(i){
- nuevoComercial.value = comerciales[i];
- editComIndex = i;
-}
-
-function eliminarComercial(i){
- let nombre = comerciales[i];
-
- if(ventas.some(v=>v.comercial===nombre)){
-  alert("No puedes borrar: tiene ventas asociadas");
-  return;
- }
-
- if(confirm("¿Eliminar comercial?")){
-  comerciales.splice(i,1);
-  guardar(); render();
- }
-}
-
-function addTarifa(){
- if(!nombreTarifa.value || !beneficioTarifa.value) return;
-
- if(editTarIndex!==null){
-  tarifas[editTarIndex] = {
-   nombre:nombreTarifa.value,
-   beneficio:parseInt(beneficioTarifa.value)
-  };
-  editTarIndex=null;
- } else {
-  tarifas.push({
-   nombre:nombreTarifa.value,
-   beneficio:parseInt(beneficioTarifa.value)
-  });
- }
-
- nombreTarifa.value=""; beneficioTarifa.value="";
- guardar(); render();
-}
-
-function editarTarifa(i){
- nombreTarifa.value = tarifas[i].nombre;
- beneficioTarifa.value = tarifas[i].beneficio;
- editTarIndex = i;
-}
-
-function eliminarTarifa(i){
- let nombre = tarifas[i].nombre;
-
- if(ventas.some(v=>v.tarifa===nombre)){
-  alert("No puedes borrar: tiene ventas asociadas");
-  return;
- }
-
- if(confirm("¿Eliminar tarifa?")){
-  tarifas.splice(i,1);
-  guardar(); render();
- }
+ cliente.value="";
+ guardar();
+ render();
 }
 
 function render(){
 
- comercial.innerHTML = comerciales.map(c=>`<option>${c}</option>`).join("");
- tarifa.innerHTML = tarifas.map(t=>`<option>${t.nombre}</option>`).join("");
+ document.getElementById("sva").innerHTML =
+ svas.map(s=>`<option>${s}</option>`).join("");
 
- listaComerciales.innerHTML = comerciales.map((c,i)=>
-  `<p>${c}
-   <button onclick="editarComercial(${i})">✏️</button>
-   <button onclick="eliminarComercial(${i})">❌</button></p>`
- ).join("");
+ document.getElementById("listaSVA").innerHTML =
+ svas.map((s,i)=>`
+  <p>${s}
+  <button onclick="editarSVA(${i})">✏️</button>
+  <button onclick="eliminarSVA(${i})">❌</button>
+  </p>
+ `).join("");
 
- listaTarifas.innerHTML = tarifas.map((t,i)=>
-  `<p>${t.nombre} (${t.beneficio}€)
-   <button onclick="editarTarifa(${i})">✏️</button>
-   <button onclick="eliminarTarifa(${i})">❌</button></p>`
- ).join("");
-
- ventas.innerHTML = ventas.map(v=>`<p>${v.cliente} - ${v.comercial}</p>`).join("");
+ document.getElementById("listaVentas").innerHTML =
+ ventas.map(v=>`<p>${v.cliente} - ${v.sva}</p>`).join("");
 }
 
 render();
