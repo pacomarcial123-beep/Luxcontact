@@ -1,7 +1,8 @@
 <!DOCTYPE html><html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>LuxContact FINAL</title>
+<title>LuxContact FINAL ESTABLE</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { font-family: Arial; background:#f5f5f5; padding:20px;}
 .card { background:white; padding:15px; margin:10px 0; border-radius:10px;}
@@ -11,98 +12,128 @@ h1 { text-align:center;}
 </head><body><h1>LuxContact</h1><div class="card">
 <h2>Nueva venta</h2>
 <input id="cliente" placeholder="Cliente">
-<input id="telefono" placeholder="Teléfono">
-<select id="comercial"></select>
+<input id="telefono" placeholder="Teléfono"><select id="comercial"></select>
 <select id="tarifa"></select>
 <select id="sva"></select>
-<input id="permanencia" placeholder="Meses">
-<button onclick="guardarVenta()">Guardar</button>
+
+<input id="permanencia" placeholder="Meses"><button onclick="addVenta()">Guardar</button>
+
 </div><div class="card">
-<h2>SVA</h2>
-<input id="nuevoSVA" placeholder="Nombre SVA">
-<button onclick="addSVA()">Guardar</button>
-<div id="listaSVA"></div>
+<h2>Dashboard</h2>
+<p id="ventasTotal"></p>
+<p id="beneficioTotal"></p>
+<p id="comisionesTotal"></p>
+<canvas id="grafica"></canvas>
 </div><div class="card">
 <h2>Ventas</h2>
 <div id="listaVentas"></div>
 </div><script>
 let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
-let comerciales = ["Juan","Ana"];
-let tarifas = [{nombre:"Fibra", beneficio:20}];
+let comerciales = JSON.parse(localStorage.getItem("comerciales")) || ["Juan","Ana"];
+let tarifas = JSON.parse(localStorage.getItem("tarifas")) || [
+ {nombre:"Fibra", beneficio:20},
+ {nombre:"Móvil", beneficio:15}
+];
 let svas = JSON.parse(localStorage.getItem("svas")) || ["Seguro","TV"];
-
-let editIndex = null;
 
 function guardar(){
  localStorage.setItem("ventas", JSON.stringify(ventas));
+ localStorage.setItem("comerciales", JSON.stringify(comerciales));
+ localStorage.setItem("tarifas", JSON.stringify(tarifas));
  localStorage.setItem("svas", JSON.stringify(svas));
 }
 
-function addSVA(){
- if(!nuevoSVA.value) return;
-
- if(editIndex!==null){
-  svas[editIndex] = nuevoSVA.value;
-  editIndex = null;
- } else {
-  svas.push(nuevoSVA.value);
- }
-
- nuevoSVA.value="";
- guardar();
- render();
+function getComision(n){
+ if(n<=10) return 0;
+ if(n<=15) return 50;
+ if(n<=20) return 75;
+ return 100;
 }
 
-function editarSVA(i){
- nuevoSVA.value = svas[i];
- editIndex = i;
-}
-
-function eliminarSVA(i){
- let nombre = svas[i];
-
- if(ventas.some(v=>v.sva===nombre)){
-  alert("No puedes borrar: tiene ventas asociadas");
-  return;
+function addVenta(){
+ if(!cliente.value || !comercial.value || !tarifa.value){
+  alert("Faltan datos"); return;
  }
-
- if(confirm("¿Eliminar SVA?")){
-  svas.splice(i,1);
-  guardar();
-  render();
- }
-}
-
-function guardarVenta(){
- if(!cliente.value) return;
 
  ventas.push({
   cliente: cliente.value,
+  telefono: telefono.value,
   comercial: comercial.value,
   tarifa: tarifa.value,
-  sva: sva.value
+  sva: sva.value,
+  permanencia: parseInt(permanencia.value)||0,
+  fecha: new Date()
  });
 
  cliente.value="";
+ telefono.value="";
+ permanencia.value="";
+
  guardar();
  render();
 }
 
 function render(){
 
+ document.getElementById("comercial").innerHTML =
+ comerciales.map(c=>`<option>${c}</option>`).join("");
+
+ document.getElementById("tarifa").innerHTML =
+ tarifas.map(t=>`<option>${t.nombre}</option>`).join("");
+
  document.getElementById("sva").innerHTML =
  svas.map(s=>`<option>${s}</option>`).join("");
 
- document.getElementById("listaSVA").innerHTML =
- svas.map((s,i)=>`
-  <p>${s}
-  <button onclick="editarSVA(${i})">✏️</button>
-  <button onclick="eliminarSVA(${i})">❌</button>
-  </p>
+ document.getElementById("listaVentas").innerHTML =
+ ventas.map((v,i)=>`
+  <p>${v.cliente} - ${v.comercial} - ${v.tarifa} - ${v.sva}
+  <button onclick="eliminar(${i})">❌</button></p>
  `).join("");
 
- document.getElementById("listaVentas").innerHTML =
- ventas.map(v=>`<p>${v.cliente} - ${v.sva}</p>`).join("");
+ let ranking = {};
+ let ventasMes = {};
+ let comisiones = 0;
+ let beneficio = 0;
+
+ ventas.forEach(v=>{
+  let mes = new Date(v.fecha).getMonth();
+  let key = v.comercial + "-" + mes;
+
+  if(!ventasMes[key]) ventasMes[key]=0;
+  ventasMes[key]++;
+
+  comisiones += getComision(ventasMes[key]);
+
+  ranking[v.comercial]=(ranking[v.comercial]||0)+1;
+
+  let t = tarifas.find(x=>x.nombre===v.tarifa);
+  if(t) beneficio += t.beneficio;
+ });
+
+ document.getElementById("ventasTotal").innerText = "Ventas: " + ventas.length;
+ document.getElementById("beneficioTotal").innerText = "Beneficio: " + beneficio + "€";
+ document.getElementById("comisionesTotal").innerText = "Comisiones: " + comisiones + "€";
+
+ let data={};
+ ventas.forEach(v=>{
+  data[v.comercial]=(data[v.comercial]||0)+1;
+ });
+
+ if(window.chart) window.chart.destroy();
+
+ window.chart = new Chart(document.getElementById("grafica"),{
+  type:'bar',
+  data:{
+   labels:Object.keys(data),
+   datasets:[{data:Object.values(data)}]
+  }
+ });
+}
+
+function eliminar(i){
+ ventas.splice(i,1);
+ guardar();
+ render();
 }
 
 render();
