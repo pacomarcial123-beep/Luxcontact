@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LuxContact</title>
+<style>
+body { font-family: Arial; background:#f5f5f5; padding:20px;}
+h1 { text-align:center;}
+.card { background:white; padding:15px; margin:10px 0; border-radius:10px;}
+input, button { margin:5px; padding:8px;}
+</style>
+</head><body><h1>LuxContact</h1><div class="card">
+<h2>Nueva venta</h2>
+<input id="cliente" placeholder="Cliente"><br>
+<input id="telefono" placeholder="Teléfono"><br>
+<input id="comercial" placeholder="Comercial"><br>
+<input id="tarifa" placeholder="Tarifa"><br>
+<input id="permanencia" placeholder="Permanencia (meses)"><br>
+<button onclick="addVenta()">Guardar</button>
+</div><div class="card">
+<h2>Ventas</h2>
+<div id="ventas"></div>
+</div><div class="card">
+<h2>Ranking</h2>
+<div id="ranking"></div>
+</div><script>
+let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+
+function guardar(){
+ localStorage.setItem("ventas", JSON.stringify(ventas));
+}
+
+function addVenta(){
+ let v = {
+  cliente: document.getElementById("cliente").value,
+  telefono: document.getElementById("telefono").value,
+  comercial: document.getElementById("comercial").value,
+  tarifa: document.getElementById("tarifa").value,
+  permanencia: document.getElementById("permanencia").value,
+  fecha: new Date()
+ };
+ ventas.push(v);
+ guardar();
+ render();
+}
+
+function render(){
+ let html="";
+ ventas.forEach(v=>{
+  html += `<p>${v.cliente} - ${v.comercial}</p>`;
+ });
+ document.getElementById("ventas").innerHTML = html;
+
+ let ranking={};
+ ventas.forEach(v=>{
+  ranking[v.comercial]=(ranking[v.comercial]||0)+1;
+ });
+
+ let rhtml="";
+ Object.keys(ranking).sort((a,b)=>ranking[b]-ranking[a]).forEach(c=>{
+  rhtml += `<p>${c}: ${ranking[c]} ventas</p>`;
+ });
+ document.getElementById("ranking").innerHTML = rhtml;
+}
+
+render();
+</script></body>
+</html>
