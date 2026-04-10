@@ -1,65 +1,141 @@
 <!DOCTYPE html><html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>LuxContact</title>
+<title>LuxContact PRO+</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { font-family: Arial; background:#f5f5f5; padding:20px;}
 h1 { text-align:center;}
 .card { background:white; padding:15px; margin:10px 0; border-radius:10px;}
-input, button { margin:5px; padding:8px;}
+input, select, button { margin:5px; padding:8px;}
 </style>
-</head><body><h1>LuxContact</h1><div class="card">
+</head><body><h1>LuxContact PRO+</h1><div class="card">
 <h2>Nueva venta</h2>
-<input id="cliente" placeholder="Cliente"><br>
-<input id="telefono" placeholder="Teléfono"><br>
-<input id="comercial" placeholder="Comercial"><br>
-<input id="tarifa" placeholder="Tarifa"><br>
-<input id="permanencia" placeholder="Permanencia (meses)"><br>
+<input id="cliente" placeholder="Cliente">
+<input id="telefono" placeholder="Teléfono">
+<select id="comercial"></select>
+<select id="tarifa"></select>
+<input id="permanencia" placeholder="Meses">
 <button onclick="addVenta()">Guardar</button>
 </div><div class="card">
-<h2>Ventas</h2>
-<div id="ventas"></div>
+<h2>Comerciales</h2>
+<input id="nuevoComercial" placeholder="Nombre">
+<button onclick="addComercial()">Añadir</button>
+<div id="listaComerciales"></div>
+</div><div class="card">
+<h2>Tarifas</h2>
+<input id="nombreTarifa" placeholder="Nombre">
+<input id="beneficioTarifa" placeholder="Beneficio">
+<button onclick="addTarifa()">Añadir</button>
+<div id="listaTarifas"></div>
+</div><div class="card">
+<h2>Dashboard</h2>
+<p id="ventasTotal"></p>
+<p id="comisionesTotal"></p>
+<canvas id="grafica"></canvas>
 </div><div class="card">
 <h2>Ranking</h2>
 <div id="ranking"></div>
+</div><div class="card">
+<h2>Alertas</h2>
+<div id="alertas"></div>
+</div><div class="card">
+<h2>Exportar</h2>
+<button onclick="exportar()">Descargar Excel</button>
 </div><script>
 let ventas = JSON.parse(localStorage.getItem("ventas")) || [];
+let comerciales = JSON.parse(localStorage.getItem("comerciales")) || [];
+let tarifas = JSON.parse(localStorage.getItem("tarifas")) || [];
 
 function guardar(){
  localStorage.setItem("ventas", JSON.stringify(ventas));
+ localStorage.setItem("comerciales", JSON.stringify(comerciales));
+ localStorage.setItem("tarifas", JSON.stringify(tarifas));
+}
+
+function addComercial(){
+ comerciales.push(nuevoComercial.value);
+ guardar(); render();
+}
+
+function addTarifa(){
+ tarifas.push({nombre:nombreTarifa.value, beneficio:parseInt(beneficioTarifa.value)});
+ guardar(); render();
+}
+
+function getComision(n){
+ if(n<=10) return 0;
+ if(n<=15) return 50;
+ if(n<=20) return 75;
+ return 100;
 }
 
 function addVenta(){
  let v = {
-  cliente: document.getElementById("cliente").value,
-  telefono: document.getElementById("telefono").value,
-  comercial: document.getElementById("comercial").value,
-  tarifa: document.getElementById("tarifa").value,
-  permanencia: document.getElementById("permanencia").value,
+  cliente: cliente.value,
+  telefono: telefono.value,
+  comercial: comercial.value,
+  tarifa: tarifa.value,
+  permanencia: parseInt(permanencia.value)||0,
   fecha: new Date()
  };
  ventas.push(v);
- guardar();
- render();
+ guardar(); render();
 }
 
 function render(){
- let html="";
- ventas.forEach(v=>{
-  html += `<p>${v.cliente} - ${v.comercial}</p>`;
- });
- document.getElementById("ventas").innerHTML = html;
+ comercial.innerHTML = comerciales.map(c=>`<option>${c}</option>`);
+ tarifa.innerHTML = tarifas.map(t=>`<option>${t.nombre}</option>`);
+
+ listaComerciales.innerHTML = comerciales.map(c=>`<p>${c}</p>`).join("");
+ listaTarifas.innerHTML = tarifas.map(t=>`<p>${t.nombre} - ${t.beneficio}€</p>`).join("");
 
  let ranking={};
  ventas.forEach(v=>{
   ranking[v.comercial]=(ranking[v.comercial]||0)+1;
  });
 
- let rhtml="";
- Object.keys(ranking).sort((a,b)=>ranking[b]-ranking[a]).forEach(c=>{
-  rhtml += `<p>${c}: ${ranking[c]} ventas</p>`;
+ ranking.innerHTML = Object.entries(ranking)
+ .sort((a,b)=>b[1]-a[1])
+ .map(r=>`<p>${r[0]}: ${r[1]}</p>`).join("");
+
+ let totalVentas = ventas.length;
+ let totalComisiones = ventas.reduce((sum,_,i)=> sum + getComision(i+1),0);
+
+ ventasTotal.innerText = "Ventas: "+totalVentas;
+ comisionesTotal.innerText = "Comisiones: "+totalComisiones+"€";
+
+ let hoy = new Date();
+ alertas.innerHTML = ventas.filter(v=>{
+  let fin = new Date(v.fecha);
+  fin.setMonth(fin.getMonth()+v.permanencia);
+  return (fin-hoy)/(1000*60*60*24)<30;
+ }).map(v=>`<p>${v.cliente} renovar</p>`).join("");
+
+ let data={};
+ ventas.forEach(v=>{
+  data[v.comercial]=(data[v.comercial]||0)+1;
  });
- document.getElementById("ranking").innerHTML = rhtml;
+
+ new Chart(document.getElementById("grafica"), {
+  type: 'bar',
+  data: {
+   labels: Object.keys(data),
+   datasets: [{ data: Object.values(data) }]
+  }
+ });
+}
+
+function exportar(){
+ let csv="Cliente,Comercial\\n";
+ ventas.forEach(v=>{
+  csv+=`${v.cliente},${v.comercial}\\n`;
+ });
+ let blob=new Blob([csv]);
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="ventas.csv";
+ a.click();
 }
 
 render();
